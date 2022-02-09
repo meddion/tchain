@@ -2,22 +2,30 @@ package tchain
 
 import (
 	"context"
-	"errors"
 	"net"
 	"net/http"
 	"net/rpc"
 )
 
+const RPCpath = "/_tchain_rpc"
+
 type SrvRPC struct {
 }
 
-type Message string
+type TxRequest struct {
+	ttl  int
+	data []byte
+}
 
-func (s *SrvRPC) Ping(req Message, resp *Message) error {
-	if string(req) != "ping" {
-		return errors.New("expected ping")
+func (s *SrvRPC) Transaction(req TxRequest, resp *TxRequest) error {
+	if req.ttl--; req.ttl <= 0 {
+		return nil
 	}
-	*resp = Message("pong")
+
+	// Call other clients
+	for _, c := range clients {
+		c.Transaction(req)
+	}
 
 	return nil
 }
@@ -33,8 +41,10 @@ func NewService() (*Service, error) {
 		return nil, err
 	}
 
+	mux := http.NewServeMux()
+	mux.Handle(RPCpath, rpcServer)
 	s.Server = &http.Server{
-		Handler: rpcServer,
+		Handler: mux,
 	}
 
 	return &s, nil

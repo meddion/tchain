@@ -1,4 +1,4 @@
-package tchain
+package database
 
 import (
 	"os"

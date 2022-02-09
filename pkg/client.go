@@ -9,7 +9,7 @@ type Client struct {
 }
 
 func NewClient(addr, port string) (Client, error) {
-	c, err := rpc.DialHTTP("tcp", addr+":"+port)
+	c, err := rpc.DialHTTPPath("tcp", addr+":"+port, RPCpath)
 	if err != nil {
 		return Client{}, err
 	}
@@ -18,11 +18,11 @@ func NewClient(addr, port string) (Client, error) {
 	return client, nil
 }
 
-func (c Client) Ping(msg Message) (Message, error) {
-	var reply Message
-	err := c.Call("SrvRPC.Ping", &msg, &reply)
+func (c Client) Ping(msg TxRequest) (TxRequest, error) {
+	var reply TxRequest
+	err := c.Call("SrvRPC.Transaction", &msg, &reply)
 	if err != nil {
-		return Message(""), err
+		return TxRequest(""), err
 	}
 
 	return reply, nil
