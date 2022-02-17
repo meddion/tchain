@@ -3,36 +3,60 @@ package database
 import (
 	"bytes"
 	"math/rand"
+	"time"
 )
 
-type nodeLists struct {
-	key, value []byte
-	isHead     bool
-	levels     []*nodeLists
+func init() {
+	rand.Seed(time.Now().Unix())
 }
 
-func newNodeLists(key, value []byte, height int, isHead bool) *nodeLists {
-	return &nodeLists{
+type node struct {
+	key, value []byte
+	isHead     bool
+	levels     []*node
+}
+
+func newNode(key, value []byte, isHead bool) *node {
+	return &node{
 		key:    key,
 		value:  value,
 		isHead: isHead,
-		levels: make([]*nodeLists, height),
+		levels: make([]*node, 0),
 	}
 }
 
+func (n *node) Get(level int) *node {
+	if level >= len(n.levels) {
+		return nil
+	}
+
+	return n.levels[level]
+}
+
+func (n *node) Set(level int, target *node) {
+	if level >= len(n.levels) {
+		panic("out of range indexing in node.Set")
+	}
+
+	n.levels[level] = target
+}
+
+func (n *node) Append(nodes ...*node) {
+	n.levels = append(n.levels, nodes...)
+}
+
 type SkipLists struct {
-	height int
-	head   *nodeLists
+	*node
 }
 
 func NewSkipLists() *SkipLists {
 	return &SkipLists{
-		height: 1,
-		head:   newNodeLists(nil, nil, 1, true),
+		node: newNode(nil, nil, true),
 	}
 }
 
 func randomHeight(p float64) int {
+
 	height := 1
 	for rand.Float64() < p {
 		height++
@@ -41,55 +65,56 @@ func randomHeight(p float64) int {
 	return height
 }
 
-// Search returns a *node holding the key,
-// otherwise a pointer to witch append the key.
-func (s *SkipLists) search(key []byte) ([]*nodeLists, *nodeLists) {
-	prevNodes := make([]*nodeLists, s.height)
+// Search returns a slice of nodes which lead to the target node,
+// as the second argument the matching node is returned (key == n.key)
+// or if a node doesn't exist -- return a node after which to append
+func (s *SkipLists) search(key []byte) ([]*node, *node) {
+	pathNodes := make([]*node, s.Height())
 
-	curNode := s.head
-	level := s.height - 1
+	curNode := s.node
+	level := s.Height() - 1
 
 	for level > 0 {
-		nextNode := curNode.levels[level]
+		nextNode := curNode.Get(level)
 
-		if nextNode != nil && bytes.Equal(key, nextNode.key) {
+		// key > nextNode.key
+		if nextNode != nil && bytes.Compare(key, nextNode.key) == 1 {
 			curNode = nextNode
 			continue
 		}
 
-		prevNodes[level] = curNode
+		pathNodes[level] = curNode
 		level--
 	}
 
-	return prevNodes, curNode
+	return pathNodes, curNode
 }
 
-func (s *SkipLists) Insert(key, value []byte) *nodeLists {
+func (s *SkipLists) Insert(key, value []byte) *node {
 	prevLists, p := s.search(key)
 	if bytes.Equal(p.key, key) {
 		return nil
 	}
 
 	newHeight := randomHeight(0.5)
-	target := newNodeLists(key, value, newHeight, false)
+	target := newNode(key, value, false)
 
-	// append those lists
-	if newHeight > s.height {
-		for i := newHeight - 1; i >= 0; i-- {
-			// s.head = append(s.head.levels, prevLists...)
-		}
-
-		s.height = newHeight
+	for i := s.Height(); i < newHeight; i++ {
+		s.Append(target)
 	}
 
-	for _, n := range prevLists {
-
+	for level := 0; level < newHeight; level++ {
+		prevLists[level].Set(level, target)
 	}
 
 	return target
 }
 
-func insertAfter(cur, target *nodeLists) {
+func (s *SkipLists) Height() int {
+	return len(s.levels)
+}
+
+func insertAfter(cur, target *node) {
 	// save pointers to each of the following nodes in currentNode
 	// before inserting a newNode
 	// allocate enough space in levels to hold "the following nodes"

@@ -1,4 +1,4 @@
-package tchain
+package database
 
 import (
 	"github.com/syndtr/goleveldb/leveldb"
