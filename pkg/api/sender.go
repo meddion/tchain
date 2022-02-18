@@ -12,7 +12,7 @@ type SenderRPC struct {
 }
 
 func NewSender(pool SenderPool, addr, port string) (Sender, error) {
-	c, err := rpc.DialHTTPPath("tcp", addr+":"+port, rpcPath)
+	c, err := rpc.DialHTTPPath("tcp", addr+":"+port, RpcPath)
 	if err != nil {
 		return SenderRPC{}, err
 	}

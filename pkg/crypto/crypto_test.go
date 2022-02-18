@@ -33,7 +33,7 @@ func TestSigningWithSecretKey(t *testing.T) {
 	t.Run("signing_with_hash", func(t *testing.T) {
 		msg := []byte("this message should be signed")
 
-		hashedMsg, err := Hash(msg)
+		hashedMsg, err := Hash256(msg)
 		assert.NoError(t, err, "on hashing a message")
 
 		r, s, err := sk.Sign(hashedMsg[:])

@@ -11,8 +11,10 @@ func TestTransactionValidation(t *testing.T) {
 	sk, err := crypto.NewSecretKey()
 	assert.NoError(t, err)
 
-	msg := []byte(`message to be hashed`)
-	hashed, err := crypto.Hash(msg)
+	var msg TxData
+	copy(msg[:], []byte(`message to be hashed`))
+
+	hashed, err := crypto.Hash256(msg[:])
 	assert.NoError(t, err, "on hashing a message")
 
 	r, s, err := sk.Sign(hashed[:])
@@ -24,7 +26,7 @@ func TestTransactionValidation(t *testing.T) {
 	}{
 		{Transaction{Data: msg, Hash: hashed}, false},
 		{Transaction{}, false},
-		{Transaction{Data: make([]byte, 0), Hash: hashed}, false},
+		{Transaction{Data: TxData{}, Hash: hashed}, false},
 		{Transaction{PublicKey: sk.PublicKey(), Data: msg, Hash: hashed, R: nil, S: s}, false},
 		{Transaction{PublicKey: crypto.PublicKey{}, Data: msg, Hash: hashed, R: r, S: s}, false},
 		// Success

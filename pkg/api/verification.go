@@ -2,23 +2,34 @@ package api
 
 import (
 	"bytes"
-	"log"
 
 	"github.com/meddion/pkg/crypto"
 )
+
+// TODO: impl
+func VerifyBlock(block Block) bool {
+	return true
+}
 
 func VerifyTransaction(tx Transaction) bool {
 	if tx.R == nil || tx.S == nil || len(tx.Data) == 0 || !tx.PublicKey.IsValid() {
 		return false
 	}
 
-	hash, err := crypto.Hash(tx.Data)
+	hash, err := crypto.Hash256(tx.Data[:])
 	// TODO: change the behaviour
 	if err != nil || bytes.Compare(hash[:], tx.Hash[:]) != 0 {
 		return false
 	}
 
-	log.Println(tx)
+	if !crypto.Verify(tx.PublicKey, hash[:], tx.R, tx.S) {
+		return false
+	}
 
-	return crypto.Verify(tx.PublicKey, hash[:], tx.R, tx.S)
+	return VerifyTransactionData(tx.Data)
+}
+
+// TODO: impl
+func VerifyTransactionData(txData TxData) bool {
+	return true
 }

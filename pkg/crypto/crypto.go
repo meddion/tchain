@@ -4,9 +4,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
-	"crypto/sha256"
 	"encoding/gob"
-	"fmt"
 	"math/big"
 )
 
@@ -16,10 +14,6 @@ func init() {
 	// https://stackoverflow.com/questions/21934730/gob-type-not-registered-for-interface-mapstringinterface
 	gob.Register(pubCurve)
 }
-
-const HashLen = 32
-
-type HashValue = [HashLen]byte
 
 type SecretKey struct {
 	sk *ecdsa.PrivateKey
@@ -56,15 +50,4 @@ func (sk SecretKey) PublicKey() PublicKey {
 
 func (sk SecretKey) Sign(message []byte) (*big.Int, *big.Int, error) {
 	return ecdsa.Sign(rand.Reader, sk.sk, message)
-}
-
-func Hash(message []byte) (HashValue, error) {
-	var buf HashValue
-	h := sha256.New()
-	if _, err := h.Write(message); err != nil {
-		return buf, fmt.Errorf("on writing to hash.Hash: %w", err)
-	}
-
-	copy(buf[:], h.Sum(nil)[:HashLen])
-	return buf, nil
 }

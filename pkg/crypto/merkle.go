@@ -1,26 +1,47 @@
 package crypto
 
-type HashFunc func([]byte) (HashValue, error)
+import (
+	"crypto/sha256"
+	"fmt"
+)
 
-func MerkleRoot(hashFunc HashFunc, values [][]byte) (HashValue, error) {
+const HashLen uint8 = 32
+
+type (
+	HashValue = [HashLen]byte
+	HashFunc  func([]byte) (HashValue, error)
+)
+
+var DefaultHashFunc HashFunc = Hash256
+
+func Hash256(message []byte) (HashValue, error) {
+	var buf HashValue
+	h := sha256.New()
+	if _, err := h.Write(message); err != nil {
+		return buf, fmt.Errorf("on writing to hash.Hash: %w", err)
+	}
+
+	copy(buf[:], h.Sum(nil)[:HashLen])
+	return buf, nil
+}
+
+func GenMerkleRoot(values [][]byte) (HashValue, error) {
 	switch len(values) {
 	case 0:
-		return hashFunc([]byte{})
+		return DefaultHashFunc([]byte{})
 	case 1:
-		return hashFunc(values[0])
+		return DefaultHashFunc(values[0])
 	}
 
-	// TODO: simplify
-	var hashes []HashValue
+	N := len(values)
 	if len(values)%2 != 0 {
-		hashes = make([]HashValue, len(values)+1)
 		values = append(values, values[len(values)-1])
-	} else {
-		hashes = make([]HashValue, len(values))
+		N++
 	}
+	hashes := make([]HashValue, N)
 
 	for i, v := range values {
-		hash, err := hashFunc(v)
+		hash, err := DefaultHashFunc(v)
 		if err != nil {
 			return HashValue{}, nil
 		}
@@ -34,11 +55,11 @@ func MerkleRoot(hashFunc HashFunc, values [][]byte) (HashValue, error) {
 		}
 
 		for i, j := 0, 0; i < len(hashes); i, j = i+2, j+1 {
-			buf := make([]byte, 0, HashLen*2)
-			buf = append(buf, hashes[i][:]...)
-			buf = append(buf, hashes[i+1][:]...)
+			buf := make([]byte, HashLen*2)
+			copy(buf[:HashLen], hashes[i][:])
+			copy(buf[HashLen:], hashes[i+1][:])
 
-			hash, err := hashFunc(buf)
+			hash, err := DefaultHashFunc(buf)
 			if err != nil {
 				return HashValue{}, nil
 			}

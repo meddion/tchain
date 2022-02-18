@@ -10,8 +10,8 @@ import (
 )
 
 const (
-	port = "2022"
-	addr = ""
+	testPort = "2022"
+	testAddr = ""
 )
 
 type mockSenderPool struct {
@@ -22,36 +22,29 @@ func (m mockSenderPool) Senders() []Sender {
 	return m.senders()
 }
 
-type mockMemPool struct {
-	MemPool
-}
-
-func (m mockMemPool) Get(_ crypto.HashValue) (Transaction, bool) {
-	return Transaction{}, false
-}
-
 func TestTransactionRPC(t *testing.T) {
-	mockMemPool := mockMemPool{}
 	mockSenderPool := mockSenderPool{
 		senders: func() []Sender { return []Sender{} },
 	}
 
-	rcv := NewReceiverRPC(mockMemPool, mockSenderPool, log.Default())
+	rcv := NewReceiverRPC(mockSenderPool, log.Default())
 	s, err := NewServer(rcv)
 	assert.NoError(t, err)
 
 	sk, err := crypto.NewSecretKey()
 	assert.NoError(t, err)
 
-	go func() { assert.NoError(t, s.Start(addr, port)) }()
+	go func() { assert.NoError(t, s.Start(testAddr, testPort)) }()
 	<-time.After(time.Second)
 
 	t.Run("error_transaction", func(t *testing.T) {
-		c, err := NewSender(mockSenderPool, addr, port)
+		c, err := NewSender(mockSenderPool, testAddr, testPort)
 		assert.NoError(t, err, "on creating a Sender")
 
-		msg := []byte(`This is not enough!`)
-		hashed, err := crypto.Hash(msg)
+		var msg TxData
+		copy(msg[:], []byte(`This is not enough!`))
+
+		hashed, err := crypto.Hash256(msg[:])
 		assert.NoError(t, err, "on hashing a message")
 
 		r, s, err := sk.Sign(hashed[:])
@@ -63,7 +56,7 @@ func TestTransactionRPC(t *testing.T) {
 		}{
 			// error
 			{Transaction{Data: msg, Hash: hashed}, InvalidTransactionError},
-			{Transaction{Data: make([]byte, 0), Hash: hashed}, InvalidTransactionError},
+			{Transaction{Data: TxData{}, Hash: hashed}, InvalidTransactionError},
 			{Transaction{PublicKey: sk.PublicKey(), Data: msg, Hash: hashed, R: s, S: r}, InvalidTransactionError},
 			// success
 			{Transaction{PublicKey: sk.PublicKey(), Data: msg, Hash: hashed, R: r, S: s}, nil},
@@ -78,4 +71,8 @@ func TestTransactionRPC(t *testing.T) {
 			}
 		}
 	})
+}
+
+func TestBlockCreation(t *testing.T) {
+
 }

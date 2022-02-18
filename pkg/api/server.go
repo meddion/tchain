@@ -19,7 +19,7 @@ func NewServer(rcv Receiver) (*Server, error) {
 	}
 
 	mux := http.NewServeMux()
-	mux.Handle(rpcPath, rpcServer)
+	mux.Handle(RpcPath, rpcServer)
 	s.Server = &http.Server{
 		Handler: mux,
 	}
@@ -36,6 +36,6 @@ func (s *Server) Start(addr, port string) error {
 	return s.Serve(l)
 }
 
-func (s *Server) Stop() error {
+func (s *Server) Close() error {
 	return s.Shutdown(context.TODO())
 }

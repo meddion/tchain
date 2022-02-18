@@ -1,8 +1,7 @@
 package api
 
 const (
-	serverName = ""
-	rpcPath    = "/_tchain_rpc"
+	RpcPath = "/_tchain_rpc"
 )
 
 type Sender interface {
@@ -24,13 +23,11 @@ type (
 		Status bool
 		Msg    string
 	}
-)
 
-type BlockReq struct {
-	Block
-}
+	BlockReq struct {
+		Block
+	}
 
-type (
 	TransactionReq struct {
 		Transaction
 	}
