@@ -26,7 +26,7 @@ func TestMerkleRoot(t *testing.T) {
 	}
 
 	for _, testCase := range testTable {
-		out, err := MerkleRoot(testCase.input)
+		out, err := GenMerkleRoot(testCase.input)
 		assert.NoError(t, err, "on generating a merkle root hash")
 		assert.Equal(t, testCase.expected, out, "on comparing merkle root hashes")
 	}

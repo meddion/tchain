@@ -60,7 +60,7 @@ func (r *ReceiverRPC) HandleTransaction(req TransactionReq, resp *TransactionRes
 }
 
 func (r *ReceiverRPC) HandleBlock(req BlockReq, resp *OpStatus) error {
-	if !VerifyBlock(req.Block) {
+	if !VerifyBlock(r.db, req.Block) {
 		return InvalidBlockError
 	}
 
@@ -76,6 +76,11 @@ func (r *ReceiverRPC) HandleBlock(req BlockReq, resp *OpStatus) error {
 
 	return r.db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(dbBucket))
+
+		// Block is already stored
+		if val := b.Get(hashKey[:]); val != nil {
+			return nil
+		}
 
 		blockBytes, err := req.Block.Bytes()
 		if err != nil {
