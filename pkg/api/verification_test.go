@@ -8,16 +8,15 @@ import (
 )
 
 func TestTransactionValidation(t *testing.T) {
-	sk, err := crypto.NewSecretKey()
-	assert.NoError(t, err)
-
 	var msg TxData
 	copy(msg[:], []byte(`message to be hashed`))
 
 	hashed, err := crypto.Hash256(msg[:])
 	assert.NoError(t, err, "on hashing a message")
 
-	r, s, err := sk.Sign(hashed[:])
+	signer, err := crypto.NewSigner()
+	assert.NoError(t, err, "on creating a signer")
+	sig, err := signer.Sign(hashed[:])
 	assert.NoError(t, err, "on signing a message")
 
 	testTable := []struct {
@@ -27,10 +26,10 @@ func TestTransactionValidation(t *testing.T) {
 		{Transaction{Data: msg, Hash: hashed}, false},
 		{Transaction{}, false},
 		{Transaction{Data: TxData{}, Hash: hashed}, false},
-		{Transaction{PublicKey: sk.PublicKey(), Data: msg, Hash: hashed, R: nil, S: s}, false},
-		{Transaction{PublicKey: crypto.PublicKey{}, Data: msg, Hash: hashed, R: r, S: s}, false},
+		{Transaction{Sig: sig, Data: msg, Hash: hashed}, false},
+		{Transaction{Sig: sig, Data: msg, Hash: hashed}, false},
 		// Success
-		{Transaction{PublicKey: sk.PublicKey(), Data: msg, Hash: hashed, R: r, S: s}, true},
+		{Transaction{Sig: sig, Data: msg, Hash: hashed}, true},
 	}
 
 	for i, testCase := range testTable {

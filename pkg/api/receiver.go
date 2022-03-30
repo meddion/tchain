@@ -3,37 +3,26 @@ package api
 import (
 	"errors"
 	"log"
-	"time"
 
-	"github.com/boltdb/bolt"
 	"github.com/meddion/pkg/crypto"
 )
 
 var _ Receiver = &ReceiverRPC{}
 
 var (
-	InvalidTransactionError = errors.New("transactions is invalid")
-	InvalidBlockError       = errors.New("block is invalid")
-)
-
-const (
-	dbPath   = "./blocks.db"
-	dbBucket = "blocks"
+	ErrInvalidTransaction = errors.New("transactions is invalid")
+	ErrInvalidBlock       = errors.New("block is invalid")
 )
 
 type ReceiverRPC struct {
-	senderPool SenderPool
 	txPool     map[crypto.HashValue]Transaction
-	db         *bolt.DB
-	logger     *log.Logger
+	senderPool SenderPool
+	db         *BlockRepo
+
+	logger *log.Logger
 }
 
-func NewReceiverRPC(senderPool SenderPool, logger *log.Logger) Receiver {
-	db, err := bolt.Open(dbPath, 0600, &bolt.Options{Timeout: 1 * time.Second})
-	if err != nil {
-		log.Fatalln(err)
-	}
-
+func NewReceiverRPC(senderPool SenderPool, db *BlockRepo, logger *log.Logger) Receiver {
 	return &ReceiverRPC{senderPool: senderPool, db: db, logger: logger}
 }
 
@@ -43,7 +32,7 @@ func (r *ReceiverRPC) HandleTransaction(req TransactionReq, resp *TransactionRes
 	}
 
 	if !VerifyTransaction(req.Transaction) {
-		return InvalidTransactionError
+		return ErrInvalidTransaction
 	}
 
 	// TODO: handle errors
@@ -60,8 +49,13 @@ func (r *ReceiverRPC) HandleTransaction(req TransactionReq, resp *TransactionRes
 }
 
 func (r *ReceiverRPC) HandleBlock(req BlockReq, resp *OpStatus) error {
-	if !VerifyBlock(r.db, req.Block) {
-		return InvalidBlockError
+	prevBlock, err := r.db.Get(req.Block.PrevBlockHash)
+	if err != nil {
+		return err
+	}
+
+	if !VerifyBlock(req.Block, prevBlock) {
+		return ErrInvalidBlock
 	}
 
 	hbytes, err := req.Block.Header.Bytes()
@@ -74,21 +68,7 @@ func (r *ReceiverRPC) HandleBlock(req BlockReq, resp *OpStatus) error {
 		return err
 	}
 
-	return r.db.Update(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte(dbBucket))
-
-		// Block is already stored
-		if val := b.Get(hashKey[:]); val != nil {
-			return nil
-		}
-
-		blockBytes, err := req.Block.Bytes()
-		if err != nil {
-			return err
-		}
-
-		return b.Put(hashKey[:], blockBytes)
-	})
+	return r.db.Store(hashKey, req.Block)
 }
 
 func (r *ReceiverRPC) HandleIsAlive(_ Empty, _ *Empty) error {

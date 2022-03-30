@@ -3,16 +3,51 @@ package api
 import (
 	"bytes"
 	"encoding/gob"
-	"math/big"
 
 	"github.com/meddion/pkg/crypto"
 )
 
+const (
+	_rpcPath = "/_tchain_rpc_"
+)
+
+type Sender interface {
+	SendTransaction(TransactionReq) (TransactionResp, error)
+	SendIsAlive() error
+	SendBlock() error
+}
+
+type Receiver interface {
+	HandleTransaction(TransactionReq, *TransactionResp) error
+	HandleIsAlive(Empty, *Empty) error
+	HandleBlock(BlockReq, *OpStatus) error
+}
+
 type (
-	SenderPool interface {
-		Senders() []Sender
+	Empty struct{}
+
+	OpStatus struct {
+		Status bool
+		Msg    string
+	}
+
+	BlockReq struct {
+		Block
+	}
+
+	TransactionReq struct {
+		Transaction
+	}
+
+	TransactionResp struct {
+		Status bool
+		Msg    string
 	}
 )
+
+type SenderPool interface {
+	Senders() []Sender
+}
 
 const (
 	BodyElementLimit = 64
@@ -37,10 +72,9 @@ type (
 	TxData [TxBodySizeLimit]byte
 
 	Transaction struct {
-		PublicKey crypto.PublicKey
-		R, S      *big.Int
-		Hash      crypto.HashValue
-		Data      TxData
+		Sig  crypto.Signature
+		Hash crypto.HashValue
+		Data TxData
 	}
 )
 

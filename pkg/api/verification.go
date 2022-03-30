@@ -2,43 +2,26 @@ package api
 
 import (
 	"bytes"
-	"errors"
 
-	"github.com/boltdb/bolt"
 	"github.com/meddion/pkg/crypto"
 )
 
 // TODO: impl
-func VerifyBlock(db *bolt.DB, block Block) bool {
-	if !VerifyVersion(block.version) {
-		return false
-	}
-
-	var prevBlockBytes []byte
-	// Find the previous block
-	if err := db.View(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte(dbBucket))
-		if b == nil {
-			panic("bucket doesn't exist")
-		}
-
-		prevBlockBytes = b.Get(block.PrevBlockHash[:])
-		if prevBlockBytes == nil {
-			return errors.New("block doesn't exist")
-		}
-
-		return nil
-	}); err != nil {
-		return false
-	}
-
-	prevBlock, err := DecodeBlock(prevBlockBytes)
-	if err != nil {
+func VerifyBlock(block, prevBlock Block) bool {
+	if !verifyVersion(block.version) {
 		return false
 	}
 
 	if block.Timestamp < prevBlock.Timestamp {
 		return false
+	}
+
+	for _, tx := range block.Body {
+		if !VerifyTransaction(tx) {
+			// TODO: log
+
+			return false
+		}
 	}
 
 	byteArrays, err := block.ByteArrays()
@@ -54,7 +37,7 @@ func VerifyBlock(db *bolt.DB, block Block) bool {
 	return block.MerkleRoot == hash
 }
 
-func VerifyVersion(ver uint8) bool {
+func verifyVersion(ver uint8) bool {
 	switch ver {
 	case 1:
 		return true
@@ -64,17 +47,16 @@ func VerifyVersion(ver uint8) bool {
 }
 
 func VerifyTransaction(tx Transaction) bool {
-	if tx.R == nil || tx.S == nil || len(tx.Data) == 0 || !tx.PublicKey.IsValid() {
+	if len(tx.Data) == 0 || tx.Sig == nil {
 		return false
 	}
 
 	hash, err := crypto.Hash256(tx.Data[:])
-	// TODO: change the behaviour
-	if err != nil || bytes.Compare(hash[:], tx.Hash[:]) != 0 {
+	if err != nil || !bytes.Equal(hash[:], tx.Hash[:]) {
 		return false
 	}
 
-	if !crypto.Verify(tx.PublicKey, hash[:], tx.R, tx.S) {
+	if !tx.Sig.Verify(hash[:]) {
 		return false
 	}
 

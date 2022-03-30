@@ -15,6 +15,7 @@ type (
 var DefaultHashFunc HashFunc = Hash256
 
 func Hash256(message []byte) (HashValue, error) {
+	// TODO: make one global instance and reset it before Sum()
 	var buf HashValue
 	h := sha256.New()
 	if _, err := h.Write(message); err != nil {

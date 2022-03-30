@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/boltdb/bolt"
 	"github.com/meddion/pkg/crypto"
 	"github.com/stretchr/testify/assert"
 )
@@ -27,11 +28,18 @@ func TestTransactionRPC(t *testing.T) {
 		senders: func() []Sender { return []Sender{} },
 	}
 
-	rcv := NewReceiverRPC(mockSenderPool, log.Default())
+	// TOOD: Mock Block Repo and DB
+	b, err := bolt.Open("db", 0600, &bolt.Options{Timeout: 1 * time.Second})
+	if err != nil {
+		t.Fatal(err)
+	}
+	db := &BlockRepo{db: b}
+
+	rcv := NewReceiverRPC(mockSenderPool, db, log.Default())
 	s, err := NewServer(rcv)
 	assert.NoError(t, err)
 
-	sk, err := crypto.NewSecretKey()
+	signer, err := crypto.NewSigner()
 	assert.NoError(t, err)
 
 	go func() { assert.NoError(t, s.Start(testAddr, testPort)) }()
@@ -47,7 +55,7 @@ func TestTransactionRPC(t *testing.T) {
 		hashed, err := crypto.Hash256(msg[:])
 		assert.NoError(t, err, "on hashing a message")
 
-		r, s, err := sk.Sign(hashed[:])
+		sig, err := signer.Sign(hashed[:])
 		assert.NoError(t, err, "on signing a message")
 
 		testTable := []struct {
@@ -55,11 +63,11 @@ func TestTransactionRPC(t *testing.T) {
 			err error
 		}{
 			// error
-			{Transaction{Data: msg, Hash: hashed}, InvalidTransactionError},
-			{Transaction{Data: TxData{}, Hash: hashed}, InvalidTransactionError},
-			{Transaction{PublicKey: sk.PublicKey(), Data: msg, Hash: hashed, R: s, S: r}, InvalidTransactionError},
+			{Transaction{Data: msg, Hash: hashed}, ErrInvalidTransaction},
+			{Transaction{Data: TxData{}, Hash: hashed}, ErrInvalidTransaction},
+			{Transaction{Sig: sig, Data: msg}, ErrInvalidTransaction},
 			// success
-			{Transaction{PublicKey: sk.PublicKey(), Data: msg, Hash: hashed, R: r, S: s}, nil},
+			{Transaction{Sig: sig, Data: msg, Hash: hashed}, nil},
 		}
 
 		for _, testCase := range testTable {

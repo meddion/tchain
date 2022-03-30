@@ -8,46 +8,54 @@ import (
 	"math/big"
 )
 
-var pubCurve = elliptic.P256()
+var _pubCurve = elliptic.P256()
 
 func init() {
 	// https://stackoverflow.com/questions/21934730/gob-type-not-registered-for-interface-mapstringinterface
-	gob.Register(pubCurve)
+	gob.Register(_pubCurve)
+	gob.Register(sigECDSA{})
 }
 
-type SecretKey struct {
+type Signer interface {
+	Sign([]byte) (Signature, error)
+	PublicKey() string
+}
+
+type signerECDSA struct {
 	sk *ecdsa.PrivateKey
 }
 
-type PublicKey struct {
-	PubKey ecdsa.PublicKey
-}
-
-func (p PublicKey) IsValid() bool {
-	return p.PubKey.X != nil &&
-		p.PubKey.Y != nil &&
-		p.PubKey.Curve != nil &&
-		p.PubKey.IsOnCurve(p.PubKey.X, p.PubKey.Y)
-}
-
-func Verify(pk PublicKey, signedMsg []byte, r, s *big.Int) bool {
-	return ecdsa.Verify(&pk.PubKey, signedMsg, r, s)
-}
-
-func NewSecretKey() (SecretKey, error) {
+func NewSigner() (signerECDSA, error) {
 	// this generates a public & private key pair
-	sk, err := ecdsa.GenerateKey(pubCurve, rand.Reader)
+	sk, err := ecdsa.GenerateKey(_pubCurve, rand.Reader)
 	if err != nil {
-		return SecretKey{}, err
+		return signerECDSA{}, err
 	}
 
-	return SecretKey{sk: sk}, nil
+	return signerECDSA{sk: sk}, nil
 }
 
-func (sk SecretKey) PublicKey() PublicKey {
-	return PublicKey{sk.sk.PublicKey}
+func (sk signerECDSA) Sign(message []byte) (Signature, error) {
+	r, s, err := ecdsa.Sign(rand.Reader, sk.sk, message)
+	return sigECDSA{PK: sk.sk.PublicKey, R: r, S: s}, err
 }
 
-func (sk SecretKey) Sign(message []byte) (*big.Int, *big.Int, error) {
-	return ecdsa.Sign(rand.Reader, sk.sk, message)
+type Signature interface {
+	Verify([]byte) bool
+}
+
+type sigECDSA struct {
+	PK   ecdsa.PublicKey
+	R, S *big.Int
+}
+
+func (sig sigECDSA) isValidPubKey() bool {
+	return sig.PK.X != nil &&
+		sig.PK.Y != nil &&
+		sig.PK.Curve != nil &&
+		sig.PK.IsOnCurve(sig.PK.X, sig.PK.Y)
+}
+
+func (sig sigECDSA) Verify(signedMsg []byte) bool {
+	return sig.isValidPubKey() && ecdsa.Verify(&sig.PK, signedMsg, sig.R, sig.S)
 }

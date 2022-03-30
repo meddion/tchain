@@ -6,28 +6,16 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestKeyGen(t *testing.T) {
-	sk, err := NewSecretKey()
-	assert.NoError(t, err, "on generating a secret key")
-
-	pk := sk.PublicKey()
-	assert.True(t, pk.IsValid(), "on checking key validity")
-
-	pk = PublicKey{}
-	assert.False(t, pk.IsValid(), "on checking key validity")
-}
-
 func TestSigningWithSecretKey(t *testing.T) {
-	sk, err := NewSecretKey()
+	signer, err := NewSigner()
 	assert.NoError(t, err, "on generating a secret key")
 
 	t.Run("signing", func(t *testing.T) {
 		msg := []byte("How are you doing?")
-		r, s, err := sk.Sign(msg)
+		sig, err := signer.Sign(msg)
 		assert.NoError(t, err, "on signing a message")
 
-		pk := sk.PublicKey()
-		assert.True(t, Verify(pk, msg, r, s), "on verifying a message")
+		assert.True(t, sig.Verify(msg), "on verifying a message")
 	})
 
 	t.Run("signing_with_hash", func(t *testing.T) {
@@ -36,20 +24,18 @@ func TestSigningWithSecretKey(t *testing.T) {
 		hashedMsg, err := Hash256(msg)
 		assert.NoError(t, err, "on hashing a message")
 
-		r, s, err := sk.Sign(hashedMsg[:])
+		sig, err := signer.Sign(hashedMsg[:])
 		assert.NoError(t, err, "on signing a message")
 
-		pk := sk.PublicKey()
-		assert.True(t, Verify(pk, msg, r, s), "on verifying a message")
+		assert.True(t, sig.Verify(hashedMsg[:]), "on verifying a message")
 
 	})
 
-	t.Run("signing_error", func(t *testing.T) {
+	t.Run("signing_wrong_msg_error", func(t *testing.T) {
 		msg := []byte("0x000002")
-		r, s, err := sk.Sign(msg)
+		sig, err := signer.Sign(msg)
 		assert.NoError(t, err, "on signing a message")
 
-		pk := sk.PublicKey()
-		assert.False(t, Verify(pk, []byte("0x000001"), r, s), "on verifying a message")
+		assert.False(t, sig.Verify([]byte("0x000001")), "on verifying a message")
 	})
 }
