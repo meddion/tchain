@@ -18,14 +18,13 @@ func init() {
 
 type Signer interface {
 	Sign([]byte) (Signature, error)
-	PublicKey() string
 }
 
 type signerECDSA struct {
 	sk *ecdsa.PrivateKey
 }
 
-func NewSigner() (signerECDSA, error) {
+func NewSigner() (Signer, error) {
 	// this generates a public & private key pair
 	sk, err := ecdsa.GenerateKey(_pubCurve, rand.Reader)
 	if err != nil {

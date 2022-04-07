@@ -51,8 +51,9 @@ func GenMerkleRoot(values [][]byte) (HashValue, error) {
 
 	for len(hashes) > 1 {
 		if len(hashes)%2 != 0 {
-			hashes[len(hashes)] = hashes[len(hashes)-1]
-			hashes = hashes[:len(hashes)+1]
+			hashes = append(hashes, hashes[len(hashes)-1])
+			// hashes[len(hashes)] = hashes[len(hashes)-1]
+			// hashes = hashes[:len(hashes)+1]
 		}
 
 		for i, j := 0, 0; i < len(hashes); i, j = i+2, j+1 {

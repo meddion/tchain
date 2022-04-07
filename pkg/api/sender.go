@@ -8,16 +8,15 @@ var _ Sender = &SenderRPC{}
 
 type SenderRPC struct {
 	client *rpc.Client
-	pool   SenderPool
 }
 
-func NewSender(pool SenderPool, addr, port string) (Sender, error) {
+func NewSender(addr, port string) (Sender, error) {
 	c, err := rpc.DialHTTPPath("tcp", addr+":"+port, _rpcPath)
 	if err != nil {
 		return SenderRPC{}, err
 	}
 
-	return SenderRPC{client: c, pool: pool}, nil
+	return SenderRPC{client: c}, nil
 }
 
 func (s SenderRPC) SendTransaction(req TransactionReq) (TransactionResp, error) {
@@ -43,13 +42,12 @@ func (s SenderRPC) SendIsAlive() error {
 	return nil
 }
 
-func (s SenderRPC) SendBlock() error {
-	// TODO: get it through reflect
-	// err := s.Call("ReceiverRPC.HandleBlock", &BlockReq{}, &OpStatus{})
-
-	// if err != nil {
-	// 	return err
-	// }
+func (s SenderRPC) SendBlock(blockReq BlockReq) error {
+	var opStat OpStatus
+	err := s.client.Call("ReceiverRPC.HandleBlock", blockReq, opStat)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }

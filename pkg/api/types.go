@@ -3,9 +3,51 @@ package api
 import (
 	"bytes"
 	"encoding/gob"
+	"log"
+	"time"
 
 	"github.com/meddion/pkg/crypto"
 )
+
+var (
+	GenesisBlock     Block
+	GenesisBlockHash crypto.HashValue
+)
+
+func init() {
+	msg := "on creating a genesis block: %v"
+
+	ghash, err := crypto.Hash256([]byte("genesis"))
+	if err != nil {
+		log.Fatalf(msg, err)
+	}
+
+	mroot, err := crypto.GenMerkleRoot(nil)
+	if err != nil {
+		log.Fatalf(msg, err)
+	}
+
+	GenesisBlock = Block{
+		Header: Header{
+			version:       1,
+			Timestamp:     time.Date(2021, time.February, 24, 0, 0, 0, 0, time.UTC).Unix(),
+			PrevBlockHash: ghash,
+			MerkleRoot:    mroot,
+			Nonce:         0,
+		},
+		Body: Body{},
+	}
+
+	b, err := GenesisBlock.Bytes()
+	if err != nil {
+		log.Fatalf(msg, err)
+	}
+
+	GenesisBlockHash, err = crypto.Hash256(b)
+	if err != nil {
+		log.Fatalf(msg, err)
+	}
+}
 
 const (
 	_rpcPath = "/_tchain_rpc_"
@@ -14,7 +56,7 @@ const (
 type Sender interface {
 	SendTransaction(TransactionReq) (TransactionResp, error)
 	SendIsAlive() error
-	SendBlock() error
+	SendBlock(BlockReq) error
 }
 
 type Receiver interface {
@@ -45,8 +87,8 @@ type (
 	}
 )
 
-type SenderPool interface {
-	Senders() []Sender
+type PeerPool interface {
+	Peers() []Sender
 }
 
 const (

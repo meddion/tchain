@@ -16,14 +16,19 @@ var (
 
 type ReceiverRPC struct {
 	txPool     map[crypto.HashValue]Transaction
-	senderPool SenderPool
+	senderPool PeerPool
 	db         *BlockRepo
 
 	logger *log.Logger
 }
 
-func NewReceiverRPC(senderPool SenderPool, db *BlockRepo, logger *log.Logger) Receiver {
-	return &ReceiverRPC{senderPool: senderPool, db: db, logger: logger}
+func NewReceiverRPC(senderPool PeerPool, db *BlockRepo, logger *log.Logger) Receiver {
+	return &ReceiverRPC{
+		txPool:     make(map[crypto.HashValue]Transaction),
+		senderPool: senderPool,
+		db:         db,
+		logger:     logger,
+	}
 }
 
 func (r *ReceiverRPC) HandleTransaction(req TransactionReq, resp *TransactionResp) error {
@@ -35,9 +40,11 @@ func (r *ReceiverRPC) HandleTransaction(req TransactionReq, resp *TransactionRes
 		return ErrInvalidTransaction
 	}
 
+	r.txPool[req.Hash] = req.Transaction
+
 	// TODO: handle errors
 	var errors []error
-	for _, s := range r.senderPool.Senders() {
+	for _, s := range r.senderPool.Peers() {
 		if _, err := s.SendTransaction(req); err != nil {
 			errors = append(errors, err)
 		}
@@ -67,6 +74,8 @@ func (r *ReceiverRPC) HandleBlock(req BlockReq, resp *OpStatus) error {
 	if err != nil {
 		return err
 	}
+
+	log.Println(hashKey)
 
 	return r.db.Store(hashKey, req.Block)
 }

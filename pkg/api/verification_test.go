@@ -26,13 +26,26 @@ func TestTransactionValidation(t *testing.T) {
 		{Transaction{Data: msg, Hash: hashed}, false},
 		{Transaction{}, false},
 		{Transaction{Data: TxData{}, Hash: hashed}, false},
-		{Transaction{Sig: sig, Data: msg, Hash: hashed}, false},
-		{Transaction{Sig: sig, Data: msg, Hash: hashed}, false},
+		{Transaction{Sig: sig, Hash: hashed}, false},
+		{Transaction{Sig: sig, Data: msg}, false},
 		// Success
 		{Transaction{Sig: sig, Data: msg, Hash: hashed}, true},
 	}
 
 	for i, testCase := range testTable {
-		assert.Truef(t, VerifyTransaction(testCase.tx) == testCase.target, "table entry by %d index", i)
+		assert.Truef(t, VerifyTransaction(testCase.tx) == testCase.target, "table entry #%d", i)
+	}
+}
+
+func TestBlockValidation(t *testing.T) {
+	testTable := []struct {
+		blk    Block
+		status bool
+	}{
+		{Block{}, false},
+	}
+
+	for _, el := range testTable {
+		assert.Equal(t, el.status, VerifyBlock(el.blk, GenesisBlock))
 	}
 }
