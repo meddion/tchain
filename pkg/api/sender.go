@@ -43,8 +43,7 @@ func (s SenderRPC) SendIsAlive() error {
 }
 
 func (s SenderRPC) SendBlock(blockReq BlockReq) error {
-	var opStat OpStatus
-	err := s.client.Call("ReceiverRPC.HandleBlock", blockReq, opStat)
+	err := s.client.Call("ReceiverRPC.HandleBlock", blockReq, &Empty{})
 	if err != nil {
 		return err
 	}

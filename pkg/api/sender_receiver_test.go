@@ -3,7 +3,6 @@ package api
 import (
 	"context"
 	"log"
-	"math/rand"
 	"net/http"
 	"os"
 	"testing"
@@ -73,8 +72,7 @@ func (s *senderReceiverSuite) TearDownSuite() {
 func (s *senderReceiverSuite) TestTransactions() {
 	c := s.peerPool.Peers()[0]
 
-	var msg TxData
-	copy(msg[:], []byte(`This is not enough!`))
+	msg := TxData(`This is not enough!`)
 
 	hashed, err := crypto.Hash256(msg[:])
 	s.NoError(err, "on hashing a message")
@@ -87,9 +85,9 @@ func (s *senderReceiverSuite) TestTransactions() {
 		err error
 	}{
 		// error
-		{Transaction{Data: msg, Hash: hashed}, ErrInvalidTransaction},
-		{Transaction{Data: TxData{}, Hash: hashed}, ErrInvalidTransaction},
-		{Transaction{Sig: sig, Data: msg}, ErrInvalidTransaction},
+		{Transaction{Data: msg, Hash: hashed}, ErrInvalidSignature},
+		{Transaction{Data: TxData{}, Hash: hashed}, ErrEmptyTxData},
+		{Transaction{Sig: sig, Data: msg}, ErrInvalidChecksum},
 		// success
 		{Transaction{Sig: sig, Data: msg, Hash: hashed}, nil},
 	}
@@ -99,56 +97,31 @@ func (s *senderReceiverSuite) TestTransactions() {
 		if testCase.err == nil {
 			s.NoError(err)
 		} else {
-			s.ErrorAs(err, &testCase.err, "on executing SendTransaction()")
+			s.ErrorAs(err, &testCase.err)
 		}
 	}
 }
-
 func (s *senderReceiverSuite) TestBlocks() {
 	c := s.peerPool.Peers()[0]
 
-	txs := make([]Transaction, 25)
-	for i := 0; i < len(txs); i++ {
-		var msg TxData
-		_, err := rand.Read(msg[:])
-		s.NoError(err, "on writing a random byte sequence")
+	txs, err := genRandTransactions(25)
+	s.NoError(err, "generating random txs")
 
-		hashed, err := crypto.Hash256(msg[:])
-		s.NoError(err, "on hashing a message")
-
-		sig, err := s.signer.Sign(hashed[:])
-		s.NoError(err, "on signing a message")
-
-		txs[i].Data = msg
-		txs[i].Hash = hashed
-		txs[i].Sig = sig
-	}
-
-	txBytes := make([][]byte, 0, len(txs))
-	for _, tx := range txs {
-		btx, err := tx.Bytes()
-		s.NoError(err)
-		txBytes = append(txBytes, btx)
-	}
-
-	merkleRoot, err := crypto.GenMerkleRoot(txBytes)
+	merkleRoot, err := crypto.GenMerkleRoot(txs)
 	s.NoError(err, "on generating merkle root")
 
 	prevBlockPair := s.db.LastCommited()
 
-	var body Body
-	copy(body[:], txs)
-
 	newBlockReq := BlockReq{
 		Block{
 			Header: Header{
-				version:       1,
+				Version:       1,
 				Timestamp:     time.Now().Unix(),
 				PrevBlockHash: prevBlockPair.hash,
 				MerkleRoot:    merkleRoot,
 				Nonce:         2,
 			},
-			Body: body,
+			Body: txs,
 		},
 	}
 

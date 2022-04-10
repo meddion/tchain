@@ -61,8 +61,8 @@ func (b *BlockRepo) Get(blockID crypto.HashValue) (Block, error) {
 		return Block{}, err
 	}
 
-	block, err := DecodeBlock(blockBytes)
-	if err != nil {
+	var block Block
+	if err := block.FromBytes(blockBytes); err != nil {
 		return Block{}, err
 	}
 

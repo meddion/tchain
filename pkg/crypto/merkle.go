@@ -26,22 +26,30 @@ func Hash256(message []byte) (HashValue, error) {
 	return buf, nil
 }
 
-func GenMerkleRoot(values [][]byte) (HashValue, error) {
+type BytesConverter interface {
+	Bytes() ([]byte, error)
+}
+
+func GenMerkleRoot[T BytesConverter](values []T) (HashValue, error) {
 	switch len(values) {
 	case 0:
 		return DefaultHashFunc([]byte{})
 	case 1:
-		return DefaultHashFunc(values[0])
+		v, err := values[0].Bytes()
+		if err != nil {
+			return HashValue{}, err
+		}
+
+		return DefaultHashFunc(v)
 	}
 
-	N := len(values)
-	if len(values)%2 != 0 {
-		values = append(values, values[len(values)-1])
-		N++
-	}
-	hashes := make([]HashValue, N)
-
+	hashes := make([]HashValue, len(values))
 	for i, v := range values {
+		v, err := v.Bytes()
+		if err != nil {
+			return HashValue{}, err
+		}
+
 		hash, err := DefaultHashFunc(v)
 		if err != nil {
 			return HashValue{}, nil

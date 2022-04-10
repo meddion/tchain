@@ -48,13 +48,13 @@ type sigECDSA struct {
 	R, S *big.Int
 }
 
+func (sig sigECDSA) Verify(signedMsg []byte) bool {
+	return sig.isValidPubKey() && ecdsa.Verify(&sig.PK, signedMsg, sig.R, sig.S)
+}
+
 func (sig sigECDSA) isValidPubKey() bool {
 	return sig.PK.X != nil &&
 		sig.PK.Y != nil &&
 		sig.PK.Curve != nil &&
 		sig.PK.IsOnCurve(sig.PK.X, sig.PK.Y)
-}
-
-func (sig sigECDSA) Verify(signedMsg []byte) bool {
-	return sig.isValidPubKey() && ecdsa.Verify(&sig.PK, signedMsg, sig.R, sig.S)
 }

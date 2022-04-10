@@ -36,8 +36,8 @@ func (r *ReceiverRPC) HandleTransaction(req TransactionReq, resp *TransactionRes
 		return nil
 	}
 
-	if !VerifyTransaction(req.Transaction) {
-		return ErrInvalidTransaction
+	if err := VerifyTransaction(req.Transaction); err != nil {
+		return err
 	}
 
 	r.txPool[req.Hash] = req.Transaction
@@ -55,14 +55,14 @@ func (r *ReceiverRPC) HandleTransaction(req TransactionReq, resp *TransactionRes
 	return nil
 }
 
-func (r *ReceiverRPC) HandleBlock(req BlockReq, resp *OpStatus) error {
+func (r *ReceiverRPC) HandleBlock(req BlockReq, resp *Empty) error {
 	prevBlock, err := r.db.Get(req.Block.PrevBlockHash)
 	if err != nil {
 		return err
 	}
 
-	if !VerifyBlock(req.Block, prevBlock) {
-		return ErrInvalidBlock
+	if err := VerifyBlock(req.Block, prevBlock); err != nil {
+		return err
 	}
 
 	hbytes, err := req.Block.Header.Bytes()
@@ -74,8 +74,6 @@ func (r *ReceiverRPC) HandleBlock(req BlockReq, resp *OpStatus) error {
 	if err != nil {
 		return err
 	}
-
-	log.Println(hashKey)
 
 	return r.db.Store(hashKey, req.Block)
 }
