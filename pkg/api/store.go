@@ -13,6 +13,8 @@ const (
 	_dbBucket = "blocks"
 )
 
+var _lastCommitedKey = []byte("lastCommited")
+
 var (
 	ErrBucketNotFound = errors.New("bucket not found")
 	ErrMissingBlock   = errors.New("block is missing")
@@ -25,7 +27,7 @@ type BlockPair struct {
 
 type BlockRepo struct {
 	db           *bolt.DB
-	lastCommited []BlockPair
+	lastCommited BlockPair
 }
 
 func NewBlockRepo(db *bolt.DB) (*BlockRepo, error) {
@@ -88,17 +90,21 @@ func (b *BlockRepo) Store(hashKey crypto.HashValue, block Block) error {
 
 		// TODO: change caching
 		b.cacheBlock(hashKey, block)
+		// TODO: save it in batch
+		if err := bucket.Put(_lastCommitedKey, hashKey[:]); err != nil {
+			return err
+		}
 
 		return bucket.Put(hashKey[:], blockBytes)
 	})
 }
 
 func (b *BlockRepo) cacheBlock(hash crypto.HashValue, blk Block) {
-	b.lastCommited = append(b.lastCommited, BlockPair{hash, blk})
+	b.lastCommited = BlockPair{hash, blk}
 }
 
 func (b *BlockRepo) LastCommited() BlockPair {
-	return b.lastCommited[len(b.lastCommited)-1]
+	return b.lastCommited
 }
 
 func (b *BlockRepo) Close() error {

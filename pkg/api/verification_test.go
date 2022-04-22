@@ -54,7 +54,9 @@ func TestTransactionValidation(t *testing.T) {
 func TestBlockchainValidation(t *testing.T) {
 	blocks, err := genRandBlockchain(10)
 	assert.NoError(t, err, "on generating blockchain")
-	assert.Equal(t, GenesisBlock, blocks[0], "on checking genesis block")
+	_, genesisBlock := getGenesisPair()
+
+	assert.Equal(t, genesisBlock, blocks[0], "on checking genesis block")
 
 	for i := 1; i < len(blocks); i++ {
 		assert.NoError(t, VerifyBlock(blocks[i], blocks[i-1]), "on verifying block")
@@ -63,7 +65,8 @@ func TestBlockchainValidation(t *testing.T) {
 
 func genRandBlockchain(num int) ([]Block, error) {
 	blocks := make([]Block, num)
-	blocks[0] = GenesisBlock
+	_, genesisBlock := getGenesisPair()
+	blocks[0] = genesisBlock
 
 	for i := 1; i < len(blocks); i++ {
 		hb, err := blocks[i-1].Header.Bytes()
@@ -92,7 +95,7 @@ func genRandBlockchain(num int) ([]Block, error) {
 				Timestamp:     time.Now().Add(time.Second).Unix(),
 				PrevBlockHash: prevBlockHash,
 				MerkleRoot:    mroot,
-				Nonce:         uint32(i),
+				Nonce:         Nonce(i),
 			},
 			Body: txs,
 		}

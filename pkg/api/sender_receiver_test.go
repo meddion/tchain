@@ -49,7 +49,7 @@ func (s *senderReceiverSuite) SetupSuite() {
 	s.NoError(err, "on creating a block repo")
 
 	// Setup
-	s.NoError(s.db.Store(GenesisBlockHash, GenesisBlock), "on storing a genesis block")
+	s.NoError(s.db.Store(getGenesisPair()), "on storing a genesis block")
 
 	s.peerPool = mockPeerPool{}
 	rcv := NewReceiverRPC(s.peerPool, s.db, log.Default())

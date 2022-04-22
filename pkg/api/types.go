@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/gob"
 	"fmt"
+	"math"
 	"time"
 
 	"github.com/meddion/pkg/crypto"
@@ -14,43 +15,56 @@ const (
 )
 
 var (
-	GenesisBlock     Block
-	GenesisBlockHash crypto.HashValue
+	_genesisBlock     Block
+	_genesisBlockHash crypto.HashValue
 )
 
-func init() {
-	msg := "on creating a genesis block: %v"
+func getGenesisPair() (crypto.HashValue, Block) {
+	if _genesisBlock.Nonce != 0 {
+		return _genesisBlockHash, _genesisBlock
+	}
 
+	var err error
+	if _genesisBlock, err = genGenesisBlock(); err != nil {
+		panic(fmt.Sprintf("on creating a genesis block: %v", err))
+	}
+
+	if _genesisBlockHash, err = _genesisBlock.Header.Checksum(); err != nil {
+		panic(fmt.Sprintf("on hashing a genesis block: %v", err))
+	}
+
+	return _genesisBlockHash, _genesisBlock
+}
+
+func genGenesisBlock() (Block, error) {
 	ghash, err := crypto.Hash256([]byte("genesis"))
 	if err != nil {
-		panic(fmt.Sprintf(msg, err))
+		return Block{}, err
 	}
 
 	mroot, err := crypto.GenMerkleRoot([]Transaction{})
 	if err != nil {
-		panic(fmt.Sprintf(msg, err))
+		return Block{}, err
 	}
 
-	GenesisBlock = Block{
-		Header: Header{
-			Version:       1,
-			Timestamp:     time.Date(2021, time.February, 24, 0, 0, 0, 0, time.UTC).Unix(),
-			PrevBlockHash: ghash,
-			MerkleRoot:    mroot,
-			Nonce:         0,
-		},
-		Body: Body{},
+	header := Header{
+		Version:       1,
+		Timestamp:     time.Date(2021, time.February, 24, 0, 0, 0, 0, time.UTC).Unix(),
+		PrevBlockHash: ghash,
+		MerkleRoot:    mroot,
+		Nonce:         2068160, // difficalty = 21
 	}
+	// nonce, err := genPowNonce(header, getPowTarget())
+	// if err != nil {
+	// 	return Block{}, err
 
-	b, err := GenesisBlock.Bytes()
-	if err != nil {
-		panic(fmt.Sprintf(msg, err))
-	}
+	// }
+	// header.Nonce = nonce
 
-	GenesisBlockHash, err = crypto.Hash256(b)
-	if err != nil {
-		panic(fmt.Sprintf(msg, err))
-	}
+	return Block{
+		Header: header,
+		Body:   Body{},
+	}, nil
 }
 
 type Sender interface {
@@ -92,6 +106,7 @@ type PeerPool interface {
 }
 
 const (
+	NonceMaxValue    = math.MaxUint32
 	BodyElementLimit = 64
 	TxBodySizeLimit  = 1024
 )
@@ -107,9 +122,10 @@ type (
 		Timestamp     int64
 		PrevBlockHash crypto.HashValue
 		MerkleRoot    crypto.HashValue
-		Nonce         uint32
+		Nonce         Nonce
 	}
 
+	Nonce  uint32
 	Body   = []Transaction
 	TxData []byte
 
@@ -128,6 +144,20 @@ func (h Header) Bytes() ([]byte, error) {
 	}
 
 	return buf.Bytes(), nil
+}
+
+func (h Header) Checksum() (crypto.HashValue, error) {
+	b, err := h.Bytes()
+	if err != nil {
+		return crypto.ZeroHashValue, err
+	}
+
+	headerHash, err := crypto.Hash256(b)
+	if err != nil {
+		return crypto.ZeroHashValue, err
+	}
+
+	return headerHash, nil
 }
 
 func (b Block) Bytes() ([]byte, error) {

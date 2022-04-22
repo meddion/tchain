@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"math/big"
 
 	"github.com/meddion/pkg/crypto"
 )
@@ -12,6 +13,7 @@ var (
 	ErrUnsupportedVer    = errors.New("unsupported version")
 	ErrInvalidTimestamp  = errors.New("invalid timestamp")
 	ErrInvalidMerkleRoot = errors.New("invalid merkle root")
+	ErrInvalidNonce      = errors.New("invalid nonce")
 )
 
 // TODO: impl
@@ -22,6 +24,10 @@ func VerifyBlock(block, prevBlock Block) error {
 
 	if block.Timestamp < prevBlock.Timestamp {
 		return ErrInvalidTimestamp
+	}
+
+	if err := verifyHeaderNonce(block.Header, getPowTarget()); err != nil {
+		return err
 	}
 
 	for _, tx := range block.Body {
@@ -37,6 +43,26 @@ func VerifyBlock(block, prevBlock Block) error {
 	}
 
 	return nil
+}
+
+func verifyHeaderNonce(header Header, target powTarget) error {
+	hb, err := header.Bytes()
+	if err != nil {
+		return err
+	}
+
+	hash, err := crypto.Hash256(hb)
+	if err != nil {
+		return err
+	}
+
+	var tempInt big.Int
+	tempInt.SetBytes(hash[:])
+	if tempInt.Cmp(target) == -1 {
+		return nil
+	}
+
+	return ErrInvalidNonce
 }
 
 func verifyVersion(ver uint8) bool {

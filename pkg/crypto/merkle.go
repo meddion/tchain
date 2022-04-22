@@ -12,7 +12,10 @@ type (
 	HashFunc  func([]byte) (HashValue, error)
 )
 
-var DefaultHashFunc HashFunc = Hash256
+var (
+	DefaultHashFunc HashFunc = Hash256
+	ZeroHashValue   HashValue
+)
 
 func Hash256(message []byte) (HashValue, error) {
 	// TODO: make one global instance and reset it before Sum()
