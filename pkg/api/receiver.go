@@ -1,18 +1,12 @@
 package api
 
 import (
-	"errors"
 	"log"
 
 	"github.com/meddion/pkg/crypto"
 )
 
 var _ Receiver = &ReceiverRPC{}
-
-var (
-	ErrInvalidTransaction = errors.New("transactions is invalid")
-	ErrInvalidBlock       = errors.New("block is invalid")
-)
 
 type ReceiverRPC struct {
 	txPool     map[crypto.HashValue]Transaction

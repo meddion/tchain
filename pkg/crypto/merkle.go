@@ -26,11 +26,11 @@ func Hash256(message []byte) (HashValue, error) {
 	return buf, nil
 }
 
-type BytesConverter interface {
+type bytesConverter interface {
 	Bytes() ([]byte, error)
 }
 
-func GenMerkleRoot[T BytesConverter](values []T) (HashValue, error) {
+func GenMerkleRoot[T bytesConverter](values []T) (HashValue, error) {
 	switch len(values) {
 	case 0:
 		return DefaultHashFunc([]byte{})

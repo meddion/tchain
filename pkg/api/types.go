@@ -3,10 +3,14 @@ package api
 import (
 	"bytes"
 	"encoding/gob"
-	"log"
+	"fmt"
 	"time"
 
 	"github.com/meddion/pkg/crypto"
+)
+
+const (
+	_rpcPath = "/_tchain_rpc_"
 )
 
 var (
@@ -19,12 +23,12 @@ func init() {
 
 	ghash, err := crypto.Hash256([]byte("genesis"))
 	if err != nil {
-		log.Fatalf(msg, err)
+		panic(fmt.Sprintf(msg, err))
 	}
 
 	mroot, err := crypto.GenMerkleRoot([]Transaction{})
 	if err != nil {
-		log.Fatalf(msg, err)
+		panic(fmt.Sprintf(msg, err))
 	}
 
 	GenesisBlock = Block{
@@ -40,18 +44,14 @@ func init() {
 
 	b, err := GenesisBlock.Bytes()
 	if err != nil {
-		log.Fatalf(msg, err)
+		panic(fmt.Sprintf(msg, err))
 	}
 
 	GenesisBlockHash, err = crypto.Hash256(b)
 	if err != nil {
-		log.Fatalf(msg, err)
+		panic(fmt.Sprintf(msg, err))
 	}
 }
-
-const (
-	_rpcPath = "/_tchain_rpc_"
-)
 
 type Sender interface {
 	SendTransaction(TransactionReq) (TransactionResp, error)
