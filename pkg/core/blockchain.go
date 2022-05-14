@@ -133,17 +133,14 @@ func (b *Blockchain) setLastBlock(node *blockNode) {
 
 func (b *Blockchain) connectNodeToChain(node *blockNode) error {
 	// Adding to the tip
-	if b.lastNode.Hash == node.Prev.Hash {
+	// Adding to an existing chain
+	// If the amound of work on this chain is larger -- make it the man chain
+	if b.lastNode.Hash == node.Prev.Hash || node.WorkAmount.Cmp(b.lastNode.WorkAmount) > 0 {
 		b.setLastBlock(node)
 		if err := b.db.Store(_lastCommitedBlockNodeKey, node); err != nil {
 			return err
 		}
-
-		return nil
 	}
-
-	// Adding to an existing chain
-	// If the amound of work on this chain is larger -- make it the man chain
 
 	return nil
 }
