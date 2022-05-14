@@ -1,4 +1,4 @@
-package api
+package core
 
 import (
 	"fmt"
@@ -20,7 +20,7 @@ func TestTransactionValidation(t *testing.T) {
 	checksum, err := crypto.Hash256(msg[:])
 	assert.NoError(t, err, "on hashing a message")
 
-	signer, err := crypto.NewSigner()
+	signer, err := crypto.NewSignerECDSA()
 	assert.NoError(t, err, "on creating a signer")
 	sig, err := signer.Sign(checksum[:])
 	assert.NoError(t, err, "on signing a message")
@@ -47,23 +47,33 @@ func TestTransactionValidation(t *testing.T) {
 	}
 
 	for i, testCase := range testTable {
-		assert.Equal(t, testCase.target, VerifyTransaction(testCase.tx), "table entry #%d", i)
+		assert.Equal(t, testCase.target, testCase.tx.Verify(), "table entry #%d", i)
 	}
 }
 
 func TestBlockchainValidation(t *testing.T) {
-	blocks, err := genRandBlockchain(10)
-	assert.NoError(t, err, "on generating blockchain")
-	_, genesisBlock := getGenesisPair()
+	blocks, err := genRandBlockchain(10, Difficulty(15))
 
-	assert.Equal(t, genesisBlock, blocks[0], "on checking genesis block")
+	t.Run("success", func(t *testing.T) {
+		assert.NoError(t, err, "on generating blockchain")
+		_, genesisBlock := getGenesisPair()
 
-	for i := 1; i < len(blocks); i++ {
-		assert.NoError(t, VerifyBlock(blocks[i], blocks[i-1]), "on verifying block")
-	}
+		assert.Equal(t, genesisBlock, blocks[0], "on checking genesis block")
+
+		for i := 1; i < len(blocks); i++ {
+			assert.NoError(t, blocks[i].Verify(), "on verifying block")
+		}
+	})
+
+	t.Run("fail", func(t *testing.T) {
+		j := len(blocks) - 1
+		blocks[j].Header.Nonce = Nonce(0)
+
+		assert.Equal(t, ErrInvalidNonce, blocks[j].Verify(), "on verifying block")
+	})
 }
 
-func genRandBlockchain(num int) ([]Block, error) {
+func genRandBlockchain(num int, diff Difficulty) ([]Block, error) {
 	blocks := make([]Block, num)
 	_, genesisBlock := getGenesisPair()
 	blocks[0] = genesisBlock
@@ -89,15 +99,22 @@ func genRandBlockchain(num int) ([]Block, error) {
 			return nil, err
 		}
 
+		h := Header{
+			Version:       1,
+			Timestamp:     time.Now().Add(time.Second).Unix(),
+			PrevBlockHash: prevBlockHash,
+			MerkleRoot:    mroot,
+		}
+
+		nonce, err := diff.GenNonce(h)
+		if err != nil {
+			return nil, err
+		}
+		h.Nonce = nonce
+
 		blocks[i] = Block{
-			Header: Header{
-				Version:       1,
-				Timestamp:     time.Now().Add(time.Second).Unix(),
-				PrevBlockHash: prevBlockHash,
-				MerkleRoot:    mroot,
-				Nonce:         Nonce(i),
-			},
-			Body: txs,
+			Header: h,
+			Body:   txs,
 		}
 	}
 
@@ -105,7 +122,7 @@ func genRandBlockchain(num int) ([]Block, error) {
 }
 
 func genRandTransactions(num int) ([]Transaction, error) {
-	signer, err := crypto.NewSigner()
+	signer, err := crypto.NewSignerECDSA()
 	if err != nil {
 		return nil, fmt.Errorf("on creating a signer: %w", err)
 	}

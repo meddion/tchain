@@ -1,4 +1,4 @@
-package api
+package core
 
 import (
 	"context"
@@ -19,23 +19,36 @@ const (
 	_testPort = "2022"
 )
 
-type mockPeerPool struct{}
+type mockPeerPool struct {
+	PeerPool
+}
 
-func (m mockPeerPool) Peers() []Sender {
+func (m mockPeerPool) Peers() []Peer {
 	s, err := NewSender(_testAddr, _testPort)
 	if err != nil {
 		log.Fatalf("on creating a test sender: %v", err)
 	}
 
-	return []Sender{s}
+	return []Peer{{s}}
+}
+
+func (m mockPeerPool) NumberOfPeers() int {
+	return 1
+}
+
+func (m mockPeerPool) SendToPeers(_ func(Sender) error) <-chan error {
+	c := make(chan error)
+	close(c)
+
+	return c
 }
 
 type senderReceiverSuite struct {
 	suite.Suite
 
-	signer   crypto.Signer
+	signer   crypto.SignerECDSA
 	peerPool PeerPool
-	db       *BlockRepo
+	blkchain *Blockchain
 	serv     *Server
 }
 
@@ -45,16 +58,19 @@ func (s *senderReceiverSuite) SetupSuite() {
 		s.NoError(err, "on opening a bolt conn")
 	}
 
-	s.db, err = NewBlockRepo(b)
+	db, err := NewBlockRepo(b)
 	s.NoError(err, "on creating a block repo")
 
-	// Setup
-	s.NoError(s.db.Store(getGenesisPair()), "on storing a genesis block")
+	logger := log.Default()
+	s.blkchain, err = NewBlockchain(db, logger)
+
+	s.NoError(err, "on creating the Blockchain instance")
 
 	s.peerPool = mockPeerPool{}
-	rcv := NewReceiverRPC(s.peerPool, s.db, log.Default())
 
-	s.signer, err = crypto.NewSigner()
+	rcv := NewReceiverRPC(s.blkchain, s.peerPool, logger)
+
+	s.signer, err = crypto.NewSignerECDSA()
 	s.NoError(err, "on creating a signer")
 
 	s.serv, err = NewServer(rcv)
@@ -110,18 +126,22 @@ func (s *senderReceiverSuite) TestBlocks() {
 	merkleRoot, err := crypto.GenMerkleRoot(txs)
 	s.NoError(err, "on generating merkle root")
 
-	prevBlockPair := s.db.LastCommited()
+	h := Header{
+		Version:       1,
+		Timestamp:     time.Now().Unix(),
+		PrevBlockHash: _genesisBlockHash,
+		MerkleRoot:    merkleRoot,
+		Difficulty:    Difficulty(10),
+	}
+
+	nonce, err := h.Difficulty.GenNonce(h)
+	s.NoError(err, "on generating nonce for header")
+	h.Nonce = nonce
 
 	newBlockReq := BlockReq{
 		Block{
-			Header: Header{
-				Version:       1,
-				Timestamp:     time.Now().Unix(),
-				PrevBlockHash: prevBlockPair.hash,
-				MerkleRoot:    merkleRoot,
-				Nonce:         2,
-			},
-			Body: txs,
+			Header: h,
+			Body:   txs,
 		},
 	}
 

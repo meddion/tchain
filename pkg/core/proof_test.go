@@ -1,4 +1,4 @@
-package api
+package core
 
 import (
 	"testing"
@@ -7,11 +7,11 @@ import (
 )
 
 func TestPowGenesis(t *testing.T) {
-	target := newPowTarget(19)
+	pow := Difficulty(10)
 	h := Header{}
-	nonce, err := genPowNonce(h, target)
+	nonce, err := pow.GenNonce(h)
 	assert.NoError(t, err)
 
 	h.Nonce = nonce
-	assert.NoError(t, verifyHeaderNonce(h, target))
+	assert.NoError(t, pow.VerifyNonce(h))
 }

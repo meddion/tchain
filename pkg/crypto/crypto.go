@@ -16,31 +16,23 @@ func init() {
 	gob.Register(sigECDSA{})
 }
 
-type Signer interface {
-	Sign([]byte) (Signature, error)
-}
-
-type signerECDSA struct {
+type SignerECDSA struct {
 	sk *ecdsa.PrivateKey
 }
 
-func NewSigner() (Signer, error) {
+func NewSignerECDSA() (SignerECDSA, error) {
 	// this generates a public & private key pair
 	sk, err := ecdsa.GenerateKey(_pubCurve, rand.Reader)
 	if err != nil {
-		return signerECDSA{}, err
+		return SignerECDSA{}, err
 	}
 
-	return signerECDSA{sk: sk}, nil
+	return SignerECDSA{sk: sk}, nil
 }
 
-func (sk signerECDSA) Sign(message []byte) (Signature, error) {
+func (sk SignerECDSA) Sign(message []byte) (sigECDSA, error) {
 	r, s, err := ecdsa.Sign(rand.Reader, sk.sk, message)
 	return sigECDSA{PK: sk.sk.PublicKey, R: r, S: s}, err
-}
-
-type Signature interface {
-	Verify([]byte) bool
 }
 
 type sigECDSA struct {

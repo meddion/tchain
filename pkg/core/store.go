@@ -1,4 +1,4 @@
-package api
+package core
 
 import (
 	"errors"
@@ -13,26 +13,23 @@ const (
 	_dbBucket = "blocks"
 )
 
-var _lastCommitedKey = []byte("lastCommited")
+var _lastCommitedBlockNodeKey = []byte("lastCommited")
 
 var (
-	ErrBucketNotFound = errors.New("bucket not found")
-	ErrMissingBlock   = errors.New("block is missing")
+	ErrBucketNotFound    = errors.New("bucket not found")
+	ErrMissingBlock      = errors.New("block is missing")
+	ErrMissingParentNode = errors.New("parent node is missing")
 )
 
-type BlockPair struct {
-	hash crypto.HashValue
-	Block
-}
-
+// TODO: add index
 type BlockRepo struct {
-	db           *bolt.DB
-	lastCommited BlockPair
+	db *bolt.DB
 }
 
 func NewBlockRepo(db *bolt.DB) (*BlockRepo, error) {
 	if err := db.Update(func(tx *bolt.Tx) error {
-		if _, err := tx.CreateBucket([]byte(_dbBucket)); err != nil {
+		_, err := tx.CreateBucket([]byte(_dbBucket))
+		if err != nil && err != bolt.ErrBucketExists {
 			return fmt.Errorf("create bucket: %s", err)
 		}
 
@@ -71,7 +68,11 @@ func (b *BlockRepo) Get(blockID crypto.HashValue) (Block, error) {
 	return block, nil
 }
 
-func (b *BlockRepo) Store(hashKey crypto.HashValue, block Block) error {
+type bytesConverter interface {
+	Bytes() ([]byte, error)
+}
+
+func (b *BlockRepo) Store(hashKey []byte, block bytesConverter) error {
 	return b.db.Update(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket([]byte(_dbBucket))
 		if b == nil {
@@ -79,7 +80,7 @@ func (b *BlockRepo) Store(hashKey crypto.HashValue, block Block) error {
 		}
 
 		// Block is already stored
-		if val := bucket.Get(hashKey[:]); val != nil {
+		if val := bucket.Get(hashKey); val != nil {
 			return nil
 		}
 
@@ -88,23 +89,8 @@ func (b *BlockRepo) Store(hashKey crypto.HashValue, block Block) error {
 			return err
 		}
 
-		// TODO: change caching
-		b.cacheBlock(hashKey, block)
-		// TODO: save it in batch
-		if err := bucket.Put(_lastCommitedKey, hashKey[:]); err != nil {
-			return err
-		}
-
-		return bucket.Put(hashKey[:], blockBytes)
+		return bucket.Put(hashKey, blockBytes)
 	})
-}
-
-func (b *BlockRepo) cacheBlock(hash crypto.HashValue, blk Block) {
-	b.lastCommited = BlockPair{hash, blk}
-}
-
-func (b *BlockRepo) LastCommited() BlockPair {
-	return b.lastCommited
 }
 
 func (b *BlockRepo) Close() error {

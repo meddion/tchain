@@ -7,14 +7,11 @@ import (
 
 const HashLen uint8 = 32
 
-type (
-	HashValue = [HashLen]byte
-	HashFunc  func([]byte) (HashValue, error)
-)
+type HashValue = [HashLen]byte
 
 var (
-	DefaultHashFunc HashFunc = Hash256
-	ZeroHashValue   HashValue
+	ZeroHashValue    HashValue
+	_defaultHashFunc func([]byte) (HashValue, error) = Hash256
 )
 
 func Hash256(message []byte) (HashValue, error) {
@@ -36,14 +33,14 @@ type bytesConverter interface {
 func GenMerkleRoot[T bytesConverter](values []T) (HashValue, error) {
 	switch len(values) {
 	case 0:
-		return DefaultHashFunc([]byte{})
+		return _defaultHashFunc([]byte{})
 	case 1:
 		v, err := values[0].Bytes()
 		if err != nil {
 			return HashValue{}, err
 		}
 
-		return DefaultHashFunc(v)
+		return _defaultHashFunc(v)
 	}
 
 	hashes := make([]HashValue, len(values))
@@ -53,7 +50,7 @@ func GenMerkleRoot[T bytesConverter](values []T) (HashValue, error) {
 			return HashValue{}, err
 		}
 
-		hash, err := DefaultHashFunc(v)
+		hash, err := _defaultHashFunc(v)
 		if err != nil {
 			return HashValue{}, nil
 		}
@@ -72,7 +69,7 @@ func GenMerkleRoot[T bytesConverter](values []T) (HashValue, error) {
 			copy(buf[:HashLen], hashes[i][:])
 			copy(buf[HashLen:], hashes[i+1][:])
 
-			hash, err := DefaultHashFunc(buf)
+			hash, err := _defaultHashFunc(buf)
 			if err != nil {
 				return HashValue{}, nil
 			}

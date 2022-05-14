@@ -7,7 +7,7 @@ import (
 )
 
 func TestSigningWithSecretKey(t *testing.T) {
-	signer, err := NewSigner()
+	signer, err := NewSignerECDSA()
 	assert.NoError(t, err, "on generating a secret key")
 
 	t.Run("signing", func(t *testing.T) {
