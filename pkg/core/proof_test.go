@@ -7,7 +7,7 @@ import (
 )
 
 func TestPowGenesis(t *testing.T) {
-	pow := Difficulty(10)
+	pow := Difficulty(15)
 	h := Header{}
 	nonce, err := pow.GenNonce(h)
 	assert.NoError(t, err)

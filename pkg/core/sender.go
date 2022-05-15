@@ -1,8 +1,14 @@
 package core
 
 import (
+	"errors"
 	"net/rpc"
+	"time"
 )
+
+const _isAliveWaitDuration = time.Second * 5
+
+var ErrIsAliveTimeout = errors.New("timeout for peer")
 
 var _ Sender = &SenderRPC{}
 
@@ -10,8 +16,8 @@ type SenderRPC struct {
 	client *rpc.Client
 }
 
-func NewSender(addr, port string) (Sender, error) {
-	c, err := rpc.DialHTTPPath("tcp", addr+":"+port, _rpcPath)
+func NewSender(addr Addr) (Sender, error) {
+	c, err := rpc.DialHTTPPath("tcp", addr.String(), _rpcPath)
 	if err != nil {
 		return SenderRPC{}, err
 	}
@@ -32,14 +38,15 @@ func (s SenderRPC) SendTransaction(req TransactionReq) (TransactionResp, error) 
 }
 
 func (s SenderRPC) SendIsAlive() error {
-	// TODO: get it through reflect
-	err := s.client.Call("ReceiverRPC.HandleIsAlive", &Empty{}, &Empty{})
+	call := s.client.Go("ReceiverRPC.HandleIsAlive", &Empty{}, &Empty{}, make(chan *rpc.Call, 1))
 
-	if err != nil {
-		return err
+	select {
+	case c := <-call.Done:
+		return c.Error
+	case <-time.After(_isAliveWaitDuration):
 	}
 
-	return nil
+	return ErrIsAliveTimeout
 }
 
 func (s SenderRPC) SendBlock(blockReq BlockReq) error {
@@ -49,4 +56,14 @@ func (s SenderRPC) SendBlock(blockReq BlockReq) error {
 	}
 
 	return nil
+}
+
+func (s SenderRPC) SendPeersDiscovery() (PeersDiscoveryResp, error) {
+	var knownPeers PeersDiscoveryResp
+	err := s.client.Call("ReceiverRPC.HandleBlock", Empty{}, &knownPeers)
+	if err != nil {
+		return PeersDiscoveryResp{}, err
+	}
+
+	return knownPeers, nil
 }

@@ -9,29 +9,30 @@ import (
 var _ Receiver = &ReceiverRPC{}
 
 type ReceiverRPC struct {
-	blkchain   *Blockchain
-	senderPool PeerPool
-	txPool     map[crypto.HashValue]Transaction
-	logger     *log.Logger
+	blkchain *Blockchain
+	peerPool PeerPool
+	txPool   map[crypto.HashValue]Transaction
+	logger   *log.Logger
 }
 
 func NewReceiverRPC(blkchain *Blockchain, senderPool PeerPool, logger *log.Logger) Receiver {
 	return &ReceiverRPC{
-		blkchain:   blkchain,
-		txPool:     make(map[crypto.HashValue]Transaction),
-		senderPool: senderPool,
-		logger:     logger,
+		blkchain: blkchain,
+		txPool:   make(map[crypto.HashValue]Transaction),
+		peerPool: senderPool,
+		logger:   logger,
 	}
 }
 
 type PeerPool interface {
 	NumberOfPeers() int
-	SendToPeers(func(Sender) error) <-chan error
+	SendToPeers(func(Peer) error) <-chan error
 	Peers() []Peer
+	Close() error
 }
 
-func (r *ReceiverRPC) propagateToPeers(s func(s Sender) error) {
-	for err := range r.senderPool.SendToPeers(s) {
+func (r *ReceiverRPC) propagateToPeers(f func(s Peer) error) {
+	for err := range r.peerPool.SendToPeers(f) {
 		r.logger.Println(err)
 	}
 }
@@ -47,8 +48,8 @@ func (r *ReceiverRPC) HandleTransaction(req TransactionReq, resp *TransactionRes
 
 	r.txPool[req.Hash] = req.Transaction
 
-	r.propagateToPeers(func(s Sender) error {
-		_, err := s.SendTransaction(req)
+	r.propagateToPeers(func(p Peer) error {
+		_, err := p.SendTransaction(req)
 		return err
 	})
 
@@ -60,13 +61,24 @@ func (r *ReceiverRPC) HandleBlock(req BlockReq, resp *Empty) error {
 		return err
 	}
 
-	r.propagateToPeers(func(s Sender) error {
-		return s.SendBlock(req)
+	r.propagateToPeers(func(p Peer) error {
+		return p.SendBlock(req)
 	})
 
 	return nil
 }
 
 func (r *ReceiverRPC) HandleIsAlive(_ Empty, _ *Empty) error {
+	return nil
+}
+
+func (r *ReceiverRPC) HandlePeersDiscovery(_ Empty, knownPeers *PeersDiscoveryResp) error {
+	peers := r.peerPool.Peers()
+	addrs := make([]Addr, len(peers))
+	for i, p := range peers {
+		addrs[i] = p.Addr()
+	}
+	knownPeers.addrs = addrs
+
 	return nil
 }

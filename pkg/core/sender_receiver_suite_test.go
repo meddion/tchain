@@ -24,23 +24,28 @@ type mockPeerPool struct {
 }
 
 func (m mockPeerPool) Peers() []Peer {
-	s, err := NewSender(_testAddr, _testPort)
+	addr := Addr{_testAddr, _testPort}
+	s, err := NewSender(addr)
 	if err != nil {
 		log.Fatalf("on creating a test sender: %v", err)
 	}
 
-	return []Peer{{s}}
+	return []Peer{{Sender: s, addr: addr}}
 }
 
 func (m mockPeerPool) NumberOfPeers() int {
 	return 1
 }
 
-func (m mockPeerPool) SendToPeers(_ func(Sender) error) <-chan error {
+func (m mockPeerPool) SendToPeers(_ func(Peer) error) <-chan error {
 	c := make(chan error)
 	close(c)
 
 	return c
+}
+
+func (m mockPeerPool) Close() error {
+	return nil
 }
 
 type senderReceiverSuite struct {
@@ -76,12 +81,15 @@ func (s *senderReceiverSuite) SetupSuite() {
 	s.serv, err = NewServer(rcv)
 	s.NoError(err, "on creating a server")
 
-	go func() { s.Equal(http.ErrServerClosed, s.serv.Start(_testAddr, _testPort), "on closing a server") }()
+	go func() {
+		s.Equal(http.ErrServerClosed, s.serv.Start(_testAddr, _testPort), "on closing a server")
+	}()
 	<-time.After(time.Millisecond * 500)
 }
 
 func (s *senderReceiverSuite) TearDownSuite() {
 	s.NoError(s.serv.Close(context.Background()), "on closing database")
+	s.NoError(s.peerPool.Close(), "on closing the peer pool")
 	s.NoError(os.Remove(_dbFile), "on removing a file")
 }
 
@@ -131,7 +139,7 @@ func (s *senderReceiverSuite) TestBlocks() {
 		Timestamp:     time.Now().Unix(),
 		PrevBlockHash: _genesisBlockHash,
 		MerkleRoot:    merkleRoot,
-		Difficulty:    Difficulty(10),
+		Difficulty:    Difficulty(15),
 	}
 
 	nonce, err := h.Difficulty.GenNonce(h)

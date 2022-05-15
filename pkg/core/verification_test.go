@@ -104,6 +104,7 @@ func genRandBlockchain(num int, diff Difficulty) ([]Block, error) {
 			Timestamp:     time.Now().Add(time.Second).Unix(),
 			PrevBlockHash: prevBlockHash,
 			MerkleRoot:    mroot,
+			Difficulty:    diff,
 		}
 
 		nonce, err := diff.GenNonce(h)

@@ -16,12 +16,14 @@ type Sender interface {
 	SendTransaction(TransactionReq) (TransactionResp, error)
 	SendIsAlive() error
 	SendBlock(BlockReq) error
+	SendPeersDiscovery() (PeersDiscoveryResp, error)
 }
 
 type Receiver interface {
 	HandleTransaction(TransactionReq, *TransactionResp) error
 	HandleIsAlive(Empty, *Empty) error
 	HandleBlock(BlockReq, *Empty) error
+	HandlePeersDiscovery(Empty, *PeersDiscoveryResp) error
 }
 
 type (
@@ -44,7 +46,18 @@ type (
 		Status bool
 		Msg    string
 	}
+
+	PeersDiscoveryResp struct {
+		addrs []Addr
+	}
 )
+type Addr struct {
+	IP, Port string
+}
+
+func (a Addr) String() string {
+	return a.IP + ":" + a.Port
+}
 
 const (
 	NonceMaxValue    = math.MaxUint32
