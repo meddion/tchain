@@ -27,8 +27,9 @@ func NewReceiverRPC(blkchain *Blockchain, senderPool PeerPool, logger *log.Logge
 type PeerPool interface {
 	NumberOfPeers() int
 	SendToPeers(func(Peer) error) <-chan error
+	Add(Peer)
 	Peers() []Peer
-	Close() error
+	Close()
 }
 
 func (r *ReceiverRPC) propagateToPeers(f func(s Peer) error) {

@@ -44,8 +44,7 @@ func (m mockPeerPool) SendToPeers(_ func(Peer) error) <-chan error {
 	return c
 }
 
-func (m mockPeerPool) Close() error {
-	return nil
+func (m mockPeerPool) Close() {
 }
 
 type senderReceiverSuite struct {
@@ -89,7 +88,7 @@ func (s *senderReceiverSuite) SetupSuite() {
 
 func (s *senderReceiverSuite) TearDownSuite() {
 	s.NoError(s.serv.Close(context.Background()), "on closing database")
-	s.NoError(s.peerPool.Close(), "on closing the peer pool")
+	s.peerPool.Close()
 	s.NoError(os.Remove(_dbFile), "on removing a file")
 }
 

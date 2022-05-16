@@ -10,8 +10,6 @@ const _isAliveWaitDuration = time.Second * 5
 
 var ErrIsAliveTimeout = errors.New("timeout for peer")
 
-var _ Sender = &SenderRPC{}
-
 type SenderRPC struct {
 	client *rpc.Client
 }
