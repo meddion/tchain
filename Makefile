@@ -4,3 +4,9 @@ test_all:
 gen_mocks:
 	mockgen -destination=pkg/core/sender_mock_test.go -package=core \
 		github.com/meddion/pkg/core Sender
+
+build:
+	go build ./cmd/client/...
+	
+run: build
+	./client

@@ -4,7 +4,9 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"math/rand"
 	"sync"
+	"time"
 
 	"github.com/meddion/pkg/crypto"
 )
@@ -25,6 +27,8 @@ func NewBlockchain(db *BlockRepo, logger *log.Logger) (*Blockchain, error) {
 		logger: logger,
 		index:  newBlockIndex(),
 	}
+
+	go b.startSyncing()
 
 	if err := b.setGenesisBlock(getGenesisPair()); err != nil {
 		return nil, fmt.Errorf("on setting a genesis block: %w", err)
@@ -51,6 +55,12 @@ func (b *Blockchain) setGenesisBlock(hash crypto.HashValue, block Block) error {
 	}
 
 	return nil
+}
+
+func (b *Blockchain) startSyncing() {
+	b.logger.Print("Starting to sync the Blockchain...")
+	time.Sleep(time.Second * time.Duration(rand.Int()%50))
+	b.logger.Print("All relevant blocks have been downloaded. The Blockchain is synced :)")
 }
 
 func (b *Blockchain) ProcessBlock(block Block) error {

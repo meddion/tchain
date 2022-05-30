@@ -11,7 +11,7 @@ import (
 )
 
 func TestPingConnections(t *testing.T) {
-	peerPool := newPeerPool(log.Default(), 0, 0)
+	peerPool := NewPeerPool(log.Default(), 0, 0)
 	defer peerPool.Close()
 	assert.Equal(t, 0, peerPool.NumberOfPeers())
 

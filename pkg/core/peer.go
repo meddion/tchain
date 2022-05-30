@@ -36,7 +36,7 @@ type peerPool struct {
 }
 
 // Set time parameters to zero to disable it
-func newPeerPool(logger *log.Logger, peerDiscoveryTime, isAliveTime time.Duration) *peerPool {
+func NewPeerPool(logger *log.Logger, peerDiscoveryTime, isAliveTime time.Duration) *peerPool {
 	p := &peerPool{
 		logger:   logger,
 		peers:    make(map[Addr]Peer),
