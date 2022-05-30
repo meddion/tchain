@@ -6,8 +6,6 @@ import (
 	"github.com/meddion/pkg/crypto"
 )
 
-var _ Receiver = &ReceiverRPC{}
-
 type ReceiverRPC struct {
 	blkchain *Blockchain
 	peerPool PeerPool

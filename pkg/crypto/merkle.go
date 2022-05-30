@@ -15,7 +15,6 @@ var (
 )
 
 func Hash256(message []byte) (HashValue, error) {
-	// TODO: make one global instance and reset it before Sum()
 	var buf HashValue
 	h := sha256.New()
 	if _, err := h.Write(message); err != nil {
@@ -60,8 +59,6 @@ func GenMerkleRoot[T bytesConverter](values []T) (HashValue, error) {
 	for len(hashes) > 1 {
 		if len(hashes)%2 != 0 {
 			hashes = append(hashes, hashes[len(hashes)-1])
-			// hashes[len(hashes)] = hashes[len(hashes)-1]
-			// hashes = hashes[:len(hashes)+1]
 		}
 
 		for i, j := 0, 0; i < len(hashes); i, j = i+2, j+1 {

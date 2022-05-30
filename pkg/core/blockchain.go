@@ -17,10 +17,6 @@ type Blockchain struct {
 
 	mtx      sync.RWMutex
 	lastNode *blockNode
-
-	// currentView blockView
-	// lock    sync.RWMutex
-	// orphans map[crypto.HashValueValue]*blockNode
 }
 
 func NewBlockchain(db *BlockRepo, logger *log.Logger) (*Blockchain, error) {
@@ -57,21 +53,6 @@ func (b *Blockchain) setGenesisBlock(hash crypto.HashValue, block Block) error {
 	return nil
 }
 
-// func (b *Blockchain) getOrphan(hashKey crypto.HashValueValue) (n *blockNode, ok bool) {
-// 	b.lock.RLock()
-// 	defer b.lock.RUnlock()
-
-// 	n, ok = b.orphans[hashKey]
-// 	return
-// }
-
-// func (b *Blockchain) setOrphan(hashKey crypto.HashValueValue, node *blockNode) {
-// 	b.lock.Lock()
-// 	defer b.lock.Unlock()
-
-// 	b.orphans[hashKey] = node
-// }
-
 func (b *Blockchain) ProcessBlock(block Block) error {
 	hashKey, err := block.Header.Checksum()
 	if err != nil {
@@ -82,23 +63,8 @@ func (b *Blockchain) ProcessBlock(block Block) error {
 		return errors.New("dublicate block")
 	}
 
-	// if _, err := b.db.Get(hashKey); err == nil {
-	// }
-
-	// if _, exists := b.getOrphan(hashKey); exists {
-	// 	return errors.New("dublicate orphan block")
-	// }
-
-	// prevBlock, err := b.db.Get(block.PrevBlockHash)
-	// if err != nil {
-	// 	// b.setOrphan(hashKey, &blockNode{blk: &block})
-	// 	return err
-	// } else if block.Timestamp < prevBlock.Timestamp {
-	// 	return ErrInvalidTimestamp
-	// }
-
 	parentNode := b.index.GetNode(block.PrevBlockHash)
-	// TODO: add to orphans
+
 	if parentNode == nil {
 		return ErrMissingParentNode
 	}

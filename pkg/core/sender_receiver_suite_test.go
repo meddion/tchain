@@ -8,7 +8,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/boltdb/bolt"
 	"github.com/meddion/pkg/crypto"
 	"github.com/stretchr/testify/suite"
 )
@@ -57,12 +56,7 @@ type senderReceiverSuite struct {
 }
 
 func (s *senderReceiverSuite) SetupSuite() {
-	b, err := bolt.Open(_dbFile, 0600, &bolt.Options{Timeout: 1 * time.Second})
-	if err != nil {
-		s.NoError(err, "on opening a bolt conn")
-	}
-
-	db, err := NewBlockRepo(b)
+	db, err := NewBlockRepo(_dbFile)
 	s.NoError(err, "on creating a block repo")
 
 	logger := log.Default()

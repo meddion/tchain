@@ -3,6 +3,7 @@ package core
 import (
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/boltdb/bolt"
 	"github.com/meddion/pkg/crypto"
@@ -21,12 +22,20 @@ var (
 	ErrMissingParentNode = errors.New("parent node is missing")
 )
 
-// TODO: add index
 type BlockRepo struct {
 	db *bolt.DB
 }
 
-func NewBlockRepo(db *bolt.DB) (*BlockRepo, error) {
+func NewBlockRepo(dbFile string) (*BlockRepo, error) {
+	if dbFile == "" {
+		dbFile = _dbPath
+	}
+
+	db, err := bolt.Open(dbFile, 0600, &bolt.Options{Timeout: 1 * time.Second})
+	if err != nil {
+		return nil, fmt.Errorf("on opening a bolt conn: %w", err)
+	}
+
 	if err := db.Update(func(tx *bolt.Tx) error {
 		_, err := tx.CreateBucket([]byte(_dbBucket))
 		if err != nil && err != bolt.ErrBucketExists {
